@@ -1,6 +1,11 @@
+# The channels this package ships, and which Bots may speak in each.
+#
+# One owner, one channel, one Bot. `permitted_agents` must name ids that exist in agents.yaml, so
+# this follows that file: `chief-of-staff`. The `picked-harness` row is deliberately not here,
+# because it removes itself unless OpenBot Desktop picked something.
 channels:
-  - id: personal-assistant
-    name: Personal Assistant
-    description: Ask for help with anything in your day.
-    permitted_agents: [personal-assistant]
+  - id: chief-of-staff
+    name: Chief of Staff
+    description: Plan the day, hand over work, and be reported back to.
+    permitted_agents: [chief-of-staff]
     allowed_groups: [all]

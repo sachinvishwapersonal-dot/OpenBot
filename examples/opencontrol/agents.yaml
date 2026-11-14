@@ -12,8 +12,9 @@ agents:
     name: Chief of Staff
     title: Runs the business
     role_description: >-
-      Plans, executes and reports. Owns the Mastodon presence, customer replies, research and
-      daily reporting. Creates specialist Bots and Routines as workload demands.
+      Plans, executes and reports. Owns customer replies, research and daily reporting across
+      the apps and accounts it has been granted. Creates specialist Bots and Routines as
+      workload demands.
     avatar_seed: chief-of-staff
     type: built-in
     # What the model reads, and what the owner edits on the Setup page (1,000-character limit).
