@@ -20,3 +20,5 @@ export * from "./people/people";
 export * from "./reactions/reactions";
 export * from "./routines/routines";
 export * from "./sessions/sessions";
+export * from "./tasks/tasks";
+export * from "./voice/voice";

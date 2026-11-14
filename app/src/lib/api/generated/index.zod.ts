@@ -20,3 +20,5 @@ export * from "./people/people.zod";
 export * from "./reactions/reactions.zod";
 export * from "./routines/routines.zod";
 export * from "./sessions/sessions.zod";
+export * from "./tasks/tasks.zod";
+export * from "./voice/voice.zod";
