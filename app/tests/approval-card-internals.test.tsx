@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { WaitingForYou } from "@/components/approvals/waiting";
 import { BotNeedsYou } from "@/components/needs-you/board";
 import { answerBotsList } from "./bots-api";
+import { CONVERSATIONS_PATH, TASKS_PATH } from "./conversations-api";
 import { settleReactWork } from "./settle-react-work";
 
 /*
@@ -83,9 +84,10 @@ function serving() {
       });
     if (url === "/api/proactive/suggestions")
       return Response.json({ suggestions: [] });
-    if (url === "/api/tasks") return Response.json({ tasks: [] });
-    if (url.startsWith("/api/channels"))
-      return Response.json({ channels: [], nextCursor: null });
+    if (url.split("?")[0] === TASKS_PATH)
+      return Response.json({ tasks: [], nextCursor: null });
+    if (url.split("?")[0] === CONVERSATIONS_PATH)
+      return Response.json({ conversations: [], nextCursor: null });
     return (
       answerBotsList(input, init, {
         visible: [{ id: "researcher", name: "Researcher" }],

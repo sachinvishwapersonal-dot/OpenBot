@@ -15,6 +15,12 @@ import { proactiveKeys } from "@/lib/proactive";
 import { queryClient } from "@/query-client";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
 import { answerBotsList } from "./bots-api";
+import {
+  CONVERSATIONS_PATH,
+  conversationPage,
+  conversationPath,
+  noContent,
+} from "./conversations-api";
 import { settleReactWork } from "./settle-react-work";
 
 /** The New routine screen: what it shows, and the writes it makes when submitted. */
@@ -84,8 +90,28 @@ function serving({
         url,
         typeof init?.body === "string" ? JSON.parse(init.body) : null,
       ]);
-      if (method === "POST" && url === "/api/channels")
-        return Response.json({ channel: { id: "new-conversation" } });
+      // A conversation started for the routine: made (201), named (200), or removed (204).
+      if (method === "POST" && url === CONVERSATIONS_PATH)
+        return Response.json(
+          {
+            conversation: {
+              id: "new-conversation",
+              name: "Bot One",
+              botIds: (JSON.parse(String(init?.body)) as { botIds: string[] })
+                .botIds,
+              threadId: "thread-new-conversation",
+              active: true,
+              lastMessageAt: null,
+            },
+          },
+          { status: 201 },
+        );
+      if (method === "PATCH" && url === conversationPath("new-conversation"))
+        return Response.json({
+          summary: (JSON.parse(String(init?.body)) as { title: string }).title,
+        });
+      if (method === "DELETE" && url === conversationPath("new-conversation"))
+        return noContent();
       if (method === "POST" && url === "/api/routines") return routines();
       if (
         method === "DELETE" &&
@@ -104,11 +130,10 @@ function serving({
       ],
     });
     if (bots) return bots;
-    if (url.startsWith("/api/channels"))
-      return Response.json({
-        channels: [channel("c1", "Bot One", ["bot-1"])],
-        nextCursor: null,
-      });
+    if (url.split("?")[0] === CONVERSATIONS_PATH)
+      return Response.json(
+        conversationPage([channel("c1", "Bot One", ["bot-1"])]),
+      );
     if (url === "/api/proactive/settings")
       return Response.json(proactiveAnswer);
     if (url === DEPLOYMENT_PATH) return Response.json({ edition });
@@ -1402,7 +1427,7 @@ test("an uncertain routine save locks the form and links to the chosen Bot", asy
   expect(
     writes().some(
       ([method, path]) =>
-        method === "DELETE" && path.startsWith("/api/channels/"),
+        method === "DELETE" && path.startsWith(`${CONVERSATIONS_PATH}/`),
     ),
   ).toBe(false);
   expect(view.getByRole("alert").textContent).toContain("may have been saved");

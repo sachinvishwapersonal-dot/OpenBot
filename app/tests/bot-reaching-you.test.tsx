@@ -5,6 +5,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ReachingYou } from "@/components/delivery/reaching-you";
 import { answerBotsList } from "./bots-api";
+import { CONVERSATIONS_PATH, conversationPage } from "./conversations-api";
 import { settleReactWork } from "./settle-react-work";
 
 /** A Bot's Reaching you page: where this Bot's conversations continue outside OpenBot. */
@@ -73,14 +74,13 @@ function serving(sms = false) {
         available: { slack: true, teams: false, sms, push: false },
       });
     }
-    if (url.startsWith("/api/channels")) {
-      return Response.json({
-        channels: [
+    if (url.split("?")[0] === CONVERSATIONS_PATH) {
+      return Response.json(
+        conversationPage([
           channel("channel-expenses", "Finance desk", ["expenses"]),
           channel("channel-knowledge", "Docs desk", ["knowledge"]),
-        ],
-        nextCursor: null,
-      });
+        ]),
+      );
     }
     return (
       answerBotsList(input, init, {

@@ -59,6 +59,13 @@ import {
 } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
 import { answerBotsList } from "./bots-api";
+import {
+  CONVERSATIONS_PATH,
+  conversationOf,
+  conversationPage,
+  noContent,
+  problem,
+} from "./conversations-api";
 
 /*
  * The OpenFuse frame against OpenBot's own API shapes. Every payload below is what the server's
@@ -416,7 +423,7 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
         onboarding: null,
       },
     }),
-    "/api/channels": { channels, nextCursor: null },
+    [CONVERSATIONS_PATH]: conversationPage(channels),
     "/api/approvals": inbox,
     "/api/bots/attention": { bots: attention, lastPingId: null },
     [`/api/bots/${fuse.id}/activity`]: { activity },
@@ -456,15 +463,25 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
         path,
         body: init?.body ? JSON.parse(String(init.body)) : undefined,
       });
+      // A conversation marked read, or saying what it is doing, answers with nothing.
+      if (
+        method === "POST" &&
+        /^\/api\/v2\/organizations\/default\/conversations\/[^/]+\/(mark-read|activity|signal-busy)$/.test(
+          path,
+        )
+      )
+        return noContent();
       if (method !== "GET") return Response.json({ ok: true });
       const bots = answerBotsList(input, init, { visible: [scout, fuse] });
       if (bots) return bots;
-      const detail = path.match(/^\/api\/channels\/([^/?]+)$/);
+      const detail = path.match(
+        /^\/api\/v2\/organizations\/default\/conversations\/([^/?]+)$/,
+      );
       if (detail) {
         const found = channels.find((row) => row.id === detail[1]);
         return found
-          ? Response.json({ channel: found })
-          : Response.json({ error: "Not found" }, { status: 404 });
+          ? Response.json({ conversation: conversationOf(found) })
+          : problem(404, "Couldn't find that conversation.");
       }
       if (path in routes) return Response.json(routes[path]);
       return Response.json({ error: "Not here" }, { status: 404 });
@@ -711,10 +728,8 @@ describe("the frame", () => {
       const real = globalThis.fetch;
       return Object.assign(
         (input: RequestInfo | URL, init?: RequestInit) =>
-          String(input) === "/api/channels"
-            ? Promise.resolve(
-                Response.json({ channels: roster, nextCursor: null }),
-              )
+          String(input) === CONVERSATIONS_PATH
+            ? Promise.resolve(Response.json(conversationPage(roster)))
             : real(input, init),
         { preconnect: originalFetch.preconnect },
       );

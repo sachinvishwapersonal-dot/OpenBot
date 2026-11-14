@@ -15,6 +15,7 @@ import { MemorySources } from "@/components/memory/sources";
 import { CheckInRoutePage } from "@/components/suggestions/check-in-page";
 import { ProactiveResearchSettings } from "@/components/suggestions/proactive-panel";
 import { answerBotsList } from "./bots-api";
+import { CONVERSATIONS_PATH } from "./conversations-api";
 import { settleReactWork } from "./settle-react-work";
 
 /** A Bot's Memory page: the apps that feed it facts, and its background research. */
@@ -104,8 +105,8 @@ function serving() {
         allowed: true,
       });
     }
-    if (url.startsWith("/api/channels")) {
-      return Response.json({ channels: [], nextCursor: null });
+    if (url.split("?")[0] === CONVERSATIONS_PATH) {
+      return Response.json({ conversations: [], nextCursor: null });
     }
     return (
       answerBotsList(input, init, {

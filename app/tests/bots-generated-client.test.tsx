@@ -47,9 +47,11 @@ const server = setupServer(
   http.get("*/api/proactive/suggestions", () =>
     HttpResponse.json({ suggestions: [] }),
   ),
-  http.get("*/api/tasks", () => HttpResponse.json({ tasks: [] })),
-  http.get("*/api/channels", () =>
-    HttpResponse.json({ channels: [], nextCursor: null }),
+  http.get("*/api/v2/organizations/:organizationId/tasks", () =>
+    HttpResponse.json({ tasks: [], nextCursor: null }),
+  ),
+  http.get("*/api/v2/organizations/:organizationId/conversations", () =>
+    HttpResponse.json({ conversations: [], nextCursor: null }),
   ),
   // Everything else the page around it asks for is not this test's business, and is not found.
   http.all("*", () => new HttpResponse(null, { status: 404 })),

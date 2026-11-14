@@ -14,6 +14,7 @@ import type { SkinId } from "@/skins/types";
 import { ME_PATH, meBody, PREFERENCES_PATH } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
 import { answerBotsList } from "./bots-api";
+import { CONVERSATIONS_PATH, conversationPage } from "./conversations-api";
 
 /**
  * A skin's frame around a page, as `_authed/_app` draws it, as a page of its own for
@@ -82,13 +83,10 @@ const bodies: Record<string, unknown> = {
     messageListEmphasis: "thread",
     selfHostBannerDismissed: true,
   },
-  "/api/channels": {
-    channels: [
-      channel("c-1", ["b-1"], "Renewal for the studio policy"),
-      channel("g-1", ["b-1", "b-2"], "Kiln repair plan"),
-    ],
-    nextCursor: null,
-  },
+  [CONVERSATIONS_PATH]: conversationPage([
+    channel("c-1", ["b-1"], "Renewal for the studio policy"),
+    channel("g-1", ["b-1", "b-2"], "Kiln repair plan"),
+  ]),
   "/api/bots/attention": {
     bots: attention(params.get("attention")),
     lastPingId: null,

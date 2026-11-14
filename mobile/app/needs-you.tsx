@@ -1,7 +1,13 @@
 import { Redirect } from "expo-router";
 import { useCallback } from "react";
 import { Text } from "react-native";
-import { api, type Bot, type BotTask, type CheckInItem } from "../src/api";
+import {
+  api,
+  type Bot,
+  type BotTask,
+  type CheckInItem,
+  ORGANIZATION,
+} from "../src/api";
 import { authClient } from "../src/auth";
 import {
   hideItem,
@@ -26,10 +32,19 @@ export default function NeedsYouScreen() {
     [],
   );
   const items = useLoad(loadItems, Boolean(session));
-  const loadTasks = useCallback(
-    () => api<{ tasks: BotTask[] }>("/api/tasks"),
-    [],
-  );
+  const loadTasks = useCallback(async () => {
+    // Every page: the count of what waits on the person is of all of them.
+    const tasks: BotTask[] = [];
+    let cursor: string | null = null;
+    do {
+      const page: { tasks: BotTask[]; nextCursor: string | null } = await api(
+        `${ORGANIZATION}/tasks?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`,
+      );
+      tasks.push(...page.tasks);
+      cursor = page.nextCursor;
+    } while (cursor);
+    return { tasks };
+  }, []);
   const tasks = useLoad(loadTasks, Boolean(session));
   const loadBots = useCallback(() => api<{ agents: Bot[] }>("/api/agents"), []);
   const bots = useLoad(loadBots, Boolean(session));
@@ -81,11 +96,7 @@ export default function NeedsYouScreen() {
       {waiting.length > 0 ? (
         <Section title="Tasks">
           {waiting.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              botName={nameOf(task.agentId)}
-            />
+            <TaskCard key={task.id} task={task} botName={nameOf(task.botId)} />
           ))}
         </Section>
       ) : null}

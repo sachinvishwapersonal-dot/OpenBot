@@ -1,3 +1,9 @@
+import {
+  createConversation,
+  deleteConversation,
+  updateConversation,
+} from "@/lib/api/generated/conversations/conversations";
+import { idempotencyKey, ORGANIZATION_ID } from "@/lib/api/request";
 import { mutationOptions, type QueryClient } from "@tanstack/react-query";
 import { channelKeys } from "@/lib/channels/queries";
 import { ClientError, client } from "@/lib/client";
@@ -71,19 +77,22 @@ async function withConversation<T>(
 ): Promise<T> {
   let started: string | null = null;
   if (channelId === NEW_CONVERSATION) {
-    const response = await client("/api/channels", {
-      method: "POST",
-      body: { agentIds: [agentId] },
-      fallback: "Couldn't start a conversation for this routine.",
-    });
-    started = ((await response.json()) as { channel: { id: string } }).channel
-      .id;
+    started = (
+      await createConversation(
+        ORGANIZATION_ID,
+        { botIds: [agentId] },
+        { "Idempotency-Key": idempotencyKey() },
+        { fallback: "Couldn't start a conversation for this routine." },
+      )
+    ).conversation.id;
     // Best effort: a conversation that keeps its default name still works.
-    await client(`/api/channels/${started}/title`, {
-      method: "PUT",
-      body: { title: Array.from(name.trim()).slice(0, 60).join("") },
-      fallback: "Couldn't name the conversation.",
-    }).catch(() => undefined);
+    await updateConversation(
+      ORGANIZATION_ID,
+      started,
+      { title: Array.from(name.trim()).slice(0, 60).join("") },
+      { "Idempotency-Key": idempotencyKey() },
+      { fallback: "Couldn't name the conversation." },
+    ).catch(() => undefined);
   }
   let kept = false;
   try {
@@ -100,10 +109,13 @@ async function withConversation<T>(
         "It may have been saved on the Routines page. Open it there to check before creating another one.",
       );
     if (started && !kept) {
-      await client(`/api/channels/${started}`, {
-        method: "DELETE",
-        fallback: "Couldn't remove the conversation.",
-      }).catch(() => undefined);
+      await deleteConversation(
+        ORGANIZATION_ID,
+        started,
+        { "Idempotency-Key": idempotencyKey() },
+        undefined,
+        { fallback: "Couldn't remove the conversation." },
+      ).catch(() => undefined);
     }
     throw error;
   }

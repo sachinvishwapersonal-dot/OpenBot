@@ -1,3 +1,4 @@
+import * as Crypto from "expo-crypto";
 import { authClient, serverUrl } from "./auth";
 export async function api<T>(
   path: string,
@@ -10,6 +11,10 @@ export async function api<T>(
     credentials: "omit",
     headers: {
       ...(cookie ? { Cookie: cookie } : {}),
+      // Every write to the API is made once: the key lets the server recognise a retry of it.
+      ...(input?.method && input.method !== "GET" && path.startsWith("/api/v2/")
+        ? { "Idempotency-Key": Crypto.randomUUID() }
+        : {}),
       ...(input?.body !== undefined
         ? { "content-type": "application/json" }
         : {}),
@@ -34,17 +39,22 @@ export async function api<T>(
   }
   return body as T;
 }
+/** Where the API answers the one organization an install has. */
+export const ORGANIZATION = "/api/v2/organizations/default";
+/** A conversation, as the API lists it. */
 export type Conversation = {
   id: string;
   name: string;
-  agentIds: string[];
+  botIds: string[];
   active: boolean;
 };
+/** One thing said in a conversation, as the API lists it. */
 export type TranscriptMessage = {
   id: string;
-  role: string;
-  content?: string | unknown[];
-  toolCalls?: unknown[];
+  role: "person" | "bot" | "tool" | "system";
+  text: string;
+  /** How many tools the Bot called in this message, when it called any. */
+  toolCalls?: number;
 };
 export type ApprovalInbox = {
   requests: {
@@ -105,11 +115,11 @@ export type TaskStatus =
   | "resolved"
   | "failed"
   | "ready_for_review";
-/** A task started from an item, as `GET /api/tasks` lists it. */
+/** A task started from an item, as the API lists it. */
 export type BotTask = {
   id: string;
-  agentId: string;
-  channelId: string;
+  botId: string;
+  conversationId: string;
   title: string;
   status: TaskStatus;
   /** Why its turn couldn't finish, while failed. */

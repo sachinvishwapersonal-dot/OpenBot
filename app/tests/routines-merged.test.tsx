@@ -27,6 +27,7 @@ import type { RoutineRecord } from "@/lib/routines/queries";
 import { Route as BotGoalsRoute } from "@/routes/_authed/_app/bots.$agentId.responsibilities";
 import { Route as ResponsibilitiesRoute } from "@/routes/_authed/_app/responsibilities";
 import { answerBotsList } from "./bots-api";
+import { CONVERSATIONS_PATH, conversationPage } from "./conversations-api";
 import { settleReactWork } from "./settle-react-work";
 
 /**
@@ -146,14 +147,13 @@ function serving({
     }
     if (url === "/api/proactive/settings")
       return Response.json({ settings: checkIns, allowed: true });
-    if (url.startsWith("/api/channels")) {
-      return Response.json({
-        channels: [
+    if (url.split("?")[0] === CONVERSATIONS_PATH) {
+      return Response.json(
+        conversationPage([
           channel("channel-expenses", "Finance desk", ["expenses"]),
           channel("channel-knowledge", "Docs desk", ["knowledge"]),
-        ],
-        nextCursor: null,
-      });
+        ]),
+      );
     }
     const bots = answerBotsList(input, init, {
       visible: [

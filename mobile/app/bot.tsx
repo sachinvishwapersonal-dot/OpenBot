@@ -7,6 +7,7 @@ import {
   type BotLifecycle,
   type CheckInItem,
   type Conversation,
+  ORGANIZATION,
   type Routine,
 } from "../src/api";
 import { authClient } from "../src/auth";
@@ -91,10 +92,10 @@ export default function BotScreen() {
   async function addRoutine() {
     await action.run("add", async () => {
       const page = await api<{ conversations: Conversation[] }>(
-        "/api/delivery/conversations",
+        `${ORGANIZATION}/conversations?limit=100`,
       );
       const conversation = page.conversations.find(
-        (item) => item.active && item.agentIds.includes(botId),
+        (item) => item.active && item.botIds.includes(botId),
       );
       if (!conversation)
         throw new Error(
