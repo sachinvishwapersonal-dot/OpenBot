@@ -172,6 +172,7 @@ export * from "./computerActionResult";
 export * from "./computerActionResultAction";
 export * from "./computerActionResultElement";
 export * from "./computerActionSurface";
+export * from "./computerAnswerNotKeptResponse";
 export * from "./computerBotNotFoundResponse";
 export * from "./computerChallenge";
 export * from "./computerChallengeKind";
