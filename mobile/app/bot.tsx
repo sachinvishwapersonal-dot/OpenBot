@@ -5,8 +5,10 @@ import {
   api,
   type Bot,
   type BotLifecycle,
+  botPath,
   type CheckInItem,
   type Conversation,
+  idempotencyKey,
   type Routine,
 } from "../src/api";
 import { authClient } from "../src/auth";
@@ -37,16 +39,10 @@ export default function BotScreen() {
   const { botId = "" } = useLocalSearchParams<{ botId: string }>();
   const { data: session, isPending } = authClient.useSession();
   const action = useAction();
-  const loadBot = useCallback(
-    () => api<{ agent: Bot }>(`/api/agents/${encodeURIComponent(botId)}`),
-    [botId],
-  );
+  const loadBot = useCallback(() => api<{ bot: Bot }>(botPath(botId)), [botId]);
   const bot = useLoad(loadBot, Boolean(session && botId));
   const loadLifecycle = useCallback(
-    () =>
-      api<{ lifecycle: BotLifecycle }>(
-        `/api/bots/${encodeURIComponent(botId)}/lifecycle`,
-      ),
+    () => api<BotLifecycle>(`${botPath(botId)}/lifecycle`),
     [botId],
   );
   const lifecycle = useLoad(loadLifecycle, Boolean(session && botId));
@@ -67,15 +63,15 @@ export default function BotScreen() {
   const found = items.data?.suggestions.filter(
     (item) => item.agentId === botId,
   );
-  const paused = lifecycle.data?.lifecycle.paused;
-  const name = bot.data?.agent.name ?? "This Bot";
+  const paused = lifecycle.data?.paused;
+  const name = bot.data?.bot.name ?? "This Bot";
 
   async function setPaused(next: boolean) {
     await action.run("pause", async () => {
-      await api(
-        `/api/bots/${encodeURIComponent(botId)}/${next ? "pause" : "resume"}`,
-        { method: "POST" },
-      );
+      await api(`${botPath(botId)}/${next ? "pause" : "resume"}`, {
+        method: "POST",
+        headers: { "Idempotency-Key": idempotencyKey() },
+      });
       await lifecycle.refresh();
     });
   }
@@ -124,8 +120,8 @@ export default function BotScreen() {
       }}
     >
       <Text style={heading}>{name}</Text>
-      {bot.data?.agent.title ? (
-        <Text style={muted}>{bot.data.agent.title}</Text>
+      {bot.data?.bot.title ? (
+        <Text style={muted}>{bot.data.bot.title}</Text>
       ) : null}
       <Problem
         message={

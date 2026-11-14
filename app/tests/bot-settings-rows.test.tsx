@@ -12,6 +12,7 @@ import { BotSettingsRows } from "@/components/bot-profile/settings-rows";
 import type { AgentProfile } from "@/lib/agents/queries";
 import { meResponse } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
+import { answerTeamBots, teamBotOf } from "./bots-api";
 import { notificationsResponse } from "./notifications-api";
 import { settleReactWork } from "./settle-react-work";
 
@@ -57,8 +58,16 @@ function serving(
   role: "admin" | "user",
   teamBots: { id: string; audience: "team" | "people" }[] = [],
 ) {
-  global.fetch = (async (input: RequestInfo | URL) => {
+  global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    const listed = answerTeamBots(
+      input,
+      init,
+      teamBots.map((bot) =>
+        teamBotOf(bot.id, bot.id, { audience: bot.audience, mine: false }),
+      ),
+    );
+    if (listed) return listed;
     if (url.includes("/api/routines")) {
       return Response.json({
         routines: [{ id: "r1", agentId: "expenses" }],
@@ -67,9 +76,6 @@ function serving(
     }
     if (url.includes("/api/plugins/for/")) {
       return Response.json({ tools: [], skills: [] });
-    }
-    if (url.includes("/api/team-bots")) {
-      return Response.json({ teamBots, publishable: [] });
     }
     if (url === "/api/responsibilities") {
       return Response.json({

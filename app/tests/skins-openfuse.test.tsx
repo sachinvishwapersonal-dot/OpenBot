@@ -58,7 +58,13 @@ import {
   PREFERENCES_PATH,
 } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
-import { answerBotsList } from "./bots-api";
+import {
+  activityOf,
+  answerBotAttention,
+  answerBotsList,
+  attentionOf,
+  botOperationPath,
+} from "./bots-api";
 
 /*
  * The OpenFuse frame against OpenBot's own API shapes. Every payload below is what the server's
@@ -200,33 +206,11 @@ const inbox: ApprovalInboxData = {
 };
 
 const attention: BotAttention[] = [
-  {
-    agentId: fuse.id,
-    name: fuse.name,
-    questions: 0,
-    approvals: 1,
-    handoffs: 0,
-    unread: 0,
-    paused: false,
-    notify: "all",
-    items: 0,
-    tasks: { needsInput: 0, ready: 0, failed: 0 },
-  },
-  {
-    agentId: scout.id,
-    name: scout.name,
-    questions: 0,
-    approvals: 0,
-    handoffs: 0,
-    unread: 1,
-    paused: false,
-    notify: "all",
-    items: 0,
-    tasks: { needsInput: 0, ready: 0, failed: 0 },
-  },
+  attentionOf(fuse.id, fuse.name, { approvals: 1 }),
+  attentionOf(scout.id, scout.name, { unread: 1 }),
 ];
 
-const activity: BotActivity = {
+const activity: BotActivity = activityOf({
   inProgress: [
     {
       id: "a-live",
@@ -256,7 +240,7 @@ const activity: BotActivity = {
       cancellable: false,
     },
   ],
-};
+});
 
 const settings: ProactiveSetting[] = [
   {
@@ -418,11 +402,8 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
     }),
     "/api/channels": { channels, nextCursor: null },
     "/api/approvals": inbox,
-    "/api/bots/attention": { bots: attention, lastPingId: null },
-    [`/api/bots/${fuse.id}/activity`]: { activity },
-    [`/api/bots/${scout.id}/activity`]: {
-      activity: { inProgress: [], scheduled: [], completed: [] },
-    },
+    [botOperationPath(fuse.id, "activity")]: activity,
+    [botOperationPath(scout.id, "activity")]: activityOf(),
     "/api/proactive/settings": { settings, allowed: true },
     "/api/proactive/suggestions": { suggestions },
     "/api/routines": {
@@ -459,6 +440,8 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
       if (method !== "GET") return Response.json({ ok: true });
       const bots = answerBotsList(input, init, { visible: [scout, fuse] });
       if (bots) return bots;
+      const waiting = answerBotAttention(input, init, { bots: attention });
+      if (waiting) return waiting;
       const detail = path.match(/^\/api\/channels\/([^/?]+)$/);
       if (detail) {
         const found = channels.find((row) => row.id === detail[1]);
@@ -1038,18 +1021,7 @@ describe("the rules the frame runs on", () => {
     const busy = [
       channel({ id: "x", agentIds: ["b"], busy: true, summary: "Report" }),
     ];
-    const base = {
-      agentId: "b",
-      name: "B",
-      questions: 0,
-      approvals: 0,
-      handoffs: 0,
-      unread: 0,
-      paused: false,
-      notify: "all" as const,
-      items: 0,
-      tasks: { needsInput: 0, ready: 0, failed: 0 },
-    };
+    const base = attentionOf("b", "B");
     expect(
       statusLine({ attention: undefined, channels: busy, agentId: "b" }),
     ).toBe("Working on Report…");

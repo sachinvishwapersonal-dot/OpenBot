@@ -1,3 +1,4 @@
+import * as Crypto from "expo-crypto";
 import { authClient, serverUrl } from "./auth";
 /** A refusal from the server, with its status and the API's problem code when it gave one. */
 export class ApiError extends Error {
@@ -10,6 +11,21 @@ export class ApiError extends Error {
     this.name = "ApiError";
   }
 }
+
+/** The organization every request is in: the API addresses an install's only one as `default`. */
+export const ORGANIZATION = "/api/v2/organizations/default";
+
+/**
+ * A key for one write, so a retry of the same write is recognised as the same one. Every write to
+ * the API carries one in an `Idempotency-Key` header. From expo-crypto's random bytes, which every
+ * device has, as the web app makes its keys from `getRandomValues` rather than `randomUUID`.
+ */
+export function idempotencyKey(): string {
+  return Array.from(Crypto.getRandomBytes(16), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+
 export async function api<T>(
   path: string,
   input?: {
@@ -102,7 +118,7 @@ export type ApprovalInbox = {
     channelId?: string;
   }[];
 };
-/** A Bot as `GET /api/agents` returns it. */
+/** A Bot as the API's `listBots` and `getBot` return it, in the fields this app reads. */
 export type Bot = {
   id: string;
   name: string;
@@ -111,7 +127,37 @@ export type Bot = {
   mine: boolean;
   canManage: boolean;
 };
-export type BotLifecycle = { paused: boolean; pausedAt: string | null };
+/** The person's own state with a Bot, as the API's `getBotLifecycle` returns it. */
+export type BotLifecycle = {
+  botId: string;
+  paused: boolean;
+  pausedAt: string | null;
+};
+
+/**
+ * Every Bot this person can reach, read page by page to the end. A repeated cursor ends the list
+ * too, so a server that hands back the cursor it was given can't loop it.
+ */
+export async function everyBot(): Promise<Bot[]> {
+  const bots: Bot[] = [];
+  const seen = new Set<string>();
+  let cursor: string | null = null;
+  do {
+    const query: string = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+    const page: { bots: Bot[]; nextCursor: string | null } = await api(
+      `${ORGANIZATION}/bots?limit=100${query}`,
+    );
+    bots.push(...page.bots);
+    if (cursor) seen.add(cursor);
+    cursor = page.nextCursor;
+  } while (cursor && !seen.has(cursor));
+  return bots;
+}
+
+/** One Bot's address in the API. */
+export function botPath(botId: string): string {
+  return `${ORGANIZATION}/bots/${encodeURIComponent(botId)}`;
+}
 /**
  * Something a Bot's check-in found that needs the person, as `GET /api/proactive/suggestions` lists
  * it (open ones only). `detail` says why it was raised; `sourceApp` is the app it was read in.
