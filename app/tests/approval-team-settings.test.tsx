@@ -102,8 +102,8 @@ beforeEach(() => {
         return Response.json({ ok: true });
       }
       if (url === "/api/approvals") return Response.json(inbox);
-      if (url === "/api/approvals/shared-use")
-        return Response.json({ requests: [] });
+      if (url === "/api/v2/organizations/default/shared-use-requests?limit=100")
+        return Response.json({ sharedUseRequests: [], nextCursor: null });
       if (url === ME_PATH)
         return meResponse({
           user: { id: "me", email: "me@example.test", role: "admin" },

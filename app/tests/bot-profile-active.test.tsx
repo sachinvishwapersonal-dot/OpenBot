@@ -79,7 +79,10 @@ function serving(paused: boolean, writes: string[] = []) {
         },
       });
     }
-    if (url.includes("/shared-use/bot/")) {
+    // A Bot's shared apps, at the API's address.
+    if (
+      /^\/api\/v2\/organizations\/default\/bots\/[^/]+\/shared-use$/.test(url)
+    ) {
       return Response.json({ apps: [], pending: [] });
     }
     if (url.includes(ME_PATH)) {
