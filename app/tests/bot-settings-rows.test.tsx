@@ -13,6 +13,7 @@ import type { AgentProfile } from "@/lib/agents/queries";
 import { meResponse } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
 import { notificationsResponse } from "./notifications-api";
+import { approvalInboxResponse } from "./approvals-api";
 import { settleReactWork } from "./settle-react-work";
 
 /** The "Settings for this Bot" card: each row says its current answer and opens its page. */
@@ -96,18 +97,17 @@ function serving(
     if (url === "/api/proactive/settings") {
       return Response.json({ settings: [], allowed: true });
     }
-    if (url === "/api/approvals") {
-      return Response.json({
-        enabled: true,
-        requests: [],
-        questions: [],
-        rules: [
-          { id: "r1", botId: "expenses" },
-          { id: "r2", botId: "*" },
-        ],
-        teamRules: [],
-      });
-    }
+    const approvals = approvalInboxResponse(url, {
+      enabled: true,
+      requests: [],
+      questions: [],
+      rules: [
+        { id: "r1", botId: "expenses" },
+        { id: "r2", botId: "*" },
+      ],
+      teamRules: [],
+    });
+    if (approvals) return approvals;
     return meResponse({
       user: { id: "me", role, email: "me@example.test", name: "Me" },
     });

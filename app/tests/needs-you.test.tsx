@@ -29,6 +29,7 @@ import {
   TASKS_VIEW_STORAGE_KEY,
   TasksScreen,
 } from "@/skins/openduet/tasks-screen";
+import { APPROVALS_PATH, approvalInboxResponse } from "./approvals-api";
 import { answerBotsList } from "./bots-api";
 import { settleReactWork } from "./settle-react-work";
 
@@ -206,14 +207,16 @@ function serving() {
         })),
         nextCursor: null,
       });
-    if (path === "/api/approvals")
-      return Response.json({
+    {
+      const approvals = approvalInboxResponse(path, {
         enabled: true,
         rules: [],
         teamRules: [],
         requests: [],
         questions,
       });
+      if (approvals) return approvals;
+    }
     if (path === "/api/bots/attention")
       return Response.json({ bots: [], lastPingId: null });
     if (path === "/api/routines")
@@ -505,7 +508,7 @@ test("OpenDuet's Active lists the tasks under OpenDuet's headings, in its order"
  * A board drawn from three reads: questions and approvals, tasks, and check-in findings. One failing
  * must not hide what the others loaded, and must not read as "nothing waiting".
  */
-const APPROVALS = "/api/approvals";
+const APPROVALS = `${APPROVALS_PATH}?limit=100`;
 const TASKS = "/api/tasks";
 const CHECK_INS = "/api/proactive/suggestions";
 

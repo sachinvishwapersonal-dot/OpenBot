@@ -18,6 +18,7 @@ import {
 import type { ReactNode } from "react";
 import { BotNeedsYou } from "@/components/needs-you/board";
 import { SuggestionsInbox } from "@/components/suggestions/proactive-panel";
+import { approvalInboxResponse, approvalWriteResponse } from "./approvals-api";
 import { answerBotsList } from "./bots-api";
 import { settleReactWork } from "./settle-react-work";
 
@@ -96,9 +97,12 @@ function serving() {
         method: init.method,
         body: init.body ? JSON.parse(String(init.body)) : undefined,
       });
-      return Response.json({ ok: true });
+      return approvalWriteResponse(input, init) ?? Response.json({ ok: true });
     }
-    if (url === "/api/approvals") return Response.json(inbox);
+    {
+      const approvals = approvalInboxResponse(url, inbox);
+      if (approvals) return approvals;
+    }
     if (url === "/api/proactive/suggestions")
       return Response.json({ suggestions: found });
     if (url === "/api/tasks") return Response.json({ tasks: [] });
@@ -175,7 +179,7 @@ test("only what this Bot waits on is shown, and it can be decided here", async (
   fireEvent.click(view.getByRole("button", { name: "Allow" }));
   await waitFor(() =>
     expect(sent).toContainEqual({
-      path: "/api/approvals/r1/decision",
+      path: "/api/v2/organizations/default/people/me/approvals/r1/decide",
       method: "POST",
       body: { decision: "allow_once" },
     }),
@@ -258,7 +262,7 @@ test("a question can be put down without answering it", async () => {
   await waitFor(() =>
     expect(sent).toContainEqual(
       expect.objectContaining({
-        path: "/api/approvals/questions/q1/dismiss",
+        path: "/api/v2/organizations/default/people/me/questions/q1/dismiss",
         method: "POST",
       }),
     ),
@@ -278,7 +282,7 @@ test("a hand-off is marked done by the person, never allowed on their behalf", a
   fireEvent.click(view.getByRole("button", { name: "I did it myself" }));
   await waitFor(() =>
     expect(sent).toContainEqual({
-      path: "/api/approvals/r1/decision",
+      path: "/api/v2/organizations/default/people/me/approvals/r1/decide",
       method: "POST",
       body: { decision: "handled" },
     }),

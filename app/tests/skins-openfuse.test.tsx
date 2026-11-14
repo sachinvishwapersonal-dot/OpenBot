@@ -58,6 +58,7 @@ import {
   PREFERENCES_PATH,
 } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
+import { approvalInboxResponse, approvalWriteResponse } from "./approvals-api";
 import { answerBotsList } from "./bots-api";
 
 /*
@@ -417,7 +418,6 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
       },
     }),
     "/api/channels": { channels, nextCursor: null },
-    "/api/approvals": inbox,
     "/api/bots/attention": { bots: attention, lastPingId: null },
     [`/api/bots/${fuse.id}/activity`]: { activity },
     [`/api/bots/${scout.id}/activity`]: {
@@ -456,7 +456,10 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
         path,
         body: init?.body ? JSON.parse(String(init.body)) : undefined,
       });
-      if (method !== "GET") return Response.json({ ok: true });
+      if (method !== "GET")
+        return (
+          approvalWriteResponse(input, init) ?? Response.json({ ok: true })
+        );
       const bots = answerBotsList(input, init, { visible: [scout, fuse] });
       if (bots) return bots;
       const detail = path.match(/^\/api\/channels\/([^/?]+)$/);
@@ -466,6 +469,8 @@ function serve(options: { role?: "admin" | "user"; userId?: string } = {}) {
           ? Response.json({ channel: found })
           : Response.json({ error: "Not found" }, { status: 404 });
       }
+      const approvals = approvalInboxResponse(input, inbox);
+      if (approvals) return approvals;
       if (path in routes) return Response.json(routes[path]);
       return Response.json({ error: "Not here" }, { status: 404 });
     },
@@ -990,7 +995,7 @@ describe("each tab is OpenBot's own sections for the centre Bot", () => {
     await waitFor(() =>
       expect(calls).toContainEqual({
         method: "POST",
-        path: "/api/approvals/r-pending/decision",
+        path: "/api/v2/organizations/default/people/me/approvals/r-pending/decide",
         body: { decision: "allow_once" },
       }),
     );

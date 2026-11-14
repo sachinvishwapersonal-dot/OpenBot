@@ -34,6 +34,11 @@ import { TeamBotConsents } from "@/components/settings/team-bot-consents";
 import { deploymentKeys } from "@/lib/deployment/queries";
 import { ME_PATH, meResponse } from "./accounts-api";
 import { DEPLOYMENT_PATH } from "./admin-settings-api";
+import {
+  approvalInboxResponse,
+  approvalWriteResponse,
+  problemResponse,
+} from "./approvals-api";
 import { answerBotsList } from "./bots-api";
 
 beforeAll(() => GlobalRegistrator.register());
@@ -118,15 +123,23 @@ beforeEach(() => {
           method: init.method,
           body: init.body ? JSON.parse(String(init.body)) : undefined,
         });
-        if (url === "/api/approvals/rules" && refuseRule) {
+        if (
+          url === "/api/v2/organizations/default/people/me/approval-rules" &&
+          refuseRule
+        ) {
           const error = refuseRule;
           refuseRule = null;
-          return Response.json({ error }, { status: 400 });
+          return problemResponse(400, error);
         }
-        return Response.json({ ok: true });
+        return approvalWriteResponse(url, init) ?? Response.json({ ok: true });
       }
-      if (url === "/api/approvals")
-        return Response.json({ ...inbox, ...inboxOverride });
+      {
+        const approvals = approvalInboxResponse(url, {
+          ...inbox,
+          ...inboxOverride,
+        });
+        if (approvals) return approvals;
+      }
       const bots = answerBotsList(path, init, {
         visible: [{ id: "shopper-bot", name: "Shop" }],
       });
@@ -193,7 +206,7 @@ test("a member changes a saved rule in place", async () => {
   );
   await waitFor(() =>
     expect(sent).toContainEqual({
-      path: "/api/approvals/rules/mine",
+      path: "/api/v2/organizations/default/people/me/approval-rules/mine",
       method: "PATCH",
       body: { behaviour: "hand_off" },
     }),
@@ -221,7 +234,7 @@ test("a member adds a rule with one of the four behaviours", async () => {
   await user.click(view.getByRole("button", { name: "Save rule" }));
   await waitFor(() =>
     expect(sent).toContainEqual({
-      path: "/api/approvals/rules",
+      path: "/api/v2/organizations/default/people/me/approval-rules",
       method: "POST",
       body: {
         botId: "*",
@@ -260,7 +273,11 @@ test("a rule that is not saved keeps the dialog open, with what was typed and wh
   await user.click(within(dialog).getByRole("button", { name: "Save rule" }));
   await waitFor(() => expect(view.queryByRole("dialog")).toBeNull());
   expect(
-    sent.filter((request) => request.path === "/api/approvals/rules"),
+    sent.filter(
+      (request) =>
+        request.path ===
+        "/api/v2/organizations/default/people/me/approval-rules",
+    ),
   ).toHaveLength(2);
 });
 
@@ -402,7 +419,7 @@ test("a pending change is drawn in the conversation where the action was, and de
   fireEvent.click(view.getByRole("button", { name: "I did it myself" }));
   await waitFor(() =>
     expect(sent).toContainEqual({
-      path: "/api/approvals/request-1/decision",
+      path: "/api/v2/organizations/default/people/me/approvals/request-1/decide",
       method: "POST",
       body: { decision: "handled" },
     }),
