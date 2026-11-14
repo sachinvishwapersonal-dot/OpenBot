@@ -10,6 +10,12 @@ export async function api<T>(
     credentials: "omit",
     headers: {
       ...(cookie ? { Cookie: cookie } : {}),
+      // Every write to the API is made once per key, so a retry the network makes is the same write.
+      ...(path.startsWith("/api/v2/") &&
+      input?.method &&
+      input.method.toUpperCase() !== "GET"
+        ? { "Idempotency-Key": idempotencyKey() }
+        : {}),
       ...(input?.body !== undefined
         ? { "content-type": "application/json" }
         : {}),
@@ -33,6 +39,11 @@ export async function api<T>(
     throw new Error(said ?? `Request failed (${response.status}).`);
   }
   return body as T;
+}
+/** A key for one write. Not `crypto.randomUUID()`, which React Native does not have. */
+function idempotencyKey(): string {
+  const part = () => Math.random().toString(36).slice(2, 12);
+  return `${Date.now().toString(36)}-${part()}${part()}`;
 }
 export type Conversation = {
   id: string;
@@ -179,7 +190,7 @@ export type GrantedPlugins = {
   skills: { slug: string; title: string; summary: string }[];
 };
 export type SkillSummary = { slug: string; title: string; summary: string };
-/** Who drives a Bot's computer, as `GET /api/computers/:botId/control` answers. */
+/** Who drives a Bot's computer: the API's ComputerControl, as `GET .../computers/{botId}/control` answers. */
 export type ControlState = {
   holder: "bot" | "human";
   requested: boolean;
@@ -188,6 +199,7 @@ export type ControlState = {
   request?: { id: string; status: string; reason: string };
   secretWanted?: string;
 };
+/** One frame of a Bot's screen: the API's ComputerFrame. */
 export type Screenshot = {
   base64: string;
   width: number;
