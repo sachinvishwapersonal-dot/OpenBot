@@ -1,0 +1,7 @@
+tenant:
+  # Keep package ownership stable with the personal edition's starter (same tenant id, so an
+  # installation that started on examples/personal keeps its Bots, conversations and deployment
+  # name if it is ever pointed at this package).
+  id: openbot
+  former_ids: [personal]
+  product_name: OpenControl

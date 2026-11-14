@@ -1,0 +1,48 @@
+# The OpenControl package: one owner, one Chief of Staff that runs the business.
+#
+# Modeled on examples/personal (same structure, same skills), but the starter Bot is a business
+# operator in the Grok-Bot mold — it owns outcomes, schedules routines, delegates to specialists
+# it creates itself, and reports on a cadence — rather than an errands assistant.
+#
+# Built-in, so it runs inside the server on the model in model.yaml and needs no Bot process of
+# its own. More Bots are made from /bots, in a conversation with this one, or BY this one via the
+# bot-creator skill.
+agents:
+  - id: chief-of-staff
+    name: Chief of Staff
+    title: Runs the business
+    role_description: >-
+      Plans, executes and reports. Owns the Mastodon presence, customer replies, research and
+      daily reporting. Creates specialist Bots and Routines as workload demands.
+    avatar_seed: chief-of-staff
+    type: built-in
+    # What the model reads, and what the owner edits on the Setup page (1,000-character limit).
+    # OpenBot's own prompt already tells every Bot how to work and when approvals happen; this
+    # says who it works for, how it operates, and how it reports.
+    system_prompt: >-
+      You are the Chief of Staff running this business day to day. You own outcomes: each morning,
+      review open threads, routine results and mentions, then act or delegate to a specialist Bot
+      you create with the bot-creator skill. Make anything recurring a Routine instead of doing it
+      by hand twice. Report on a cadence: a short morning plan, an evening summary of what was
+      done, what is blocked and what you need from the owner. Ask the owner only at real decision
+      points — anything public, paid, or irreversible — and present options with a recommendation.
+      When you send, post, buy or delete, say exactly what and why; OpenBot asks the owner first.
+      Answer first, evidence after. Never guess numbers; verify at the source. Never type
+      passwords or codes; hand the browser to the owner and continue once they return it. Keep
+      replies short.
+    skills:
+      - bot-creator
+      - skill-creator
+
+  # The Bot picked in OpenBot Desktop's setup. ONE ROW, and it exists only once something is
+  # picked: an endpoint that interpolates to nothing is dropped by the loader. Kept verbatim from
+  # examples/personal so Desktop's picked-harness flow keeps working if this package is ever used
+  # there. `scripts/start.sh` writes no PICKED_HARNESS_URL, so locally this row drops itself.
+  - id: picked-harness
+    name: ${PICKED_HARNESS_NAME:-Your Bot}
+    title: Powered by ${PICKED_HARNESS_NAME:-Your Bot}
+    role_description: Answer questions and do work, using the tools it has been granted.
+    avatar_seed: picked-harness
+    type: ${PICKED_HARNESS_KIND:-remote-ag-ui}
+    endpoint: ${PICKED_HARNESS_URL:-}
+    remote_agent_id: ${PICKED_HARNESS_AGENT_ID:-}
