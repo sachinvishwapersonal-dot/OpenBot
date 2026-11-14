@@ -141,7 +141,7 @@ test("the Tasks badge counts exactly what OpenBot's Needs input list draws", asy
     enabled: true,
     requests: [
       request("waiting", "pending"),
-      request("allowed", "allowed"),
+      request("allowed", "approved"),
       request("denied", "denied"),
     ],
     rules: [],

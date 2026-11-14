@@ -102,8 +102,22 @@ function serving(
       requests: [],
       questions: [],
       rules: [
-        { id: "r1", botId: "expenses" },
-        { id: "r2", botId: "*" },
+        {
+          id: "r1",
+          botId: "expenses",
+          toolRef: "mcp/drive/share",
+          effect: "write",
+          scope: "*",
+          behaviour: "allow",
+        },
+        {
+          id: "r2",
+          botId: "*",
+          toolRef: "mcp/drive/share",
+          effect: "write",
+          scope: "*",
+          behaviour: "ask",
+        },
       ],
       teamRules: [],
     });

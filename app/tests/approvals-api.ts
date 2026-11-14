@@ -8,6 +8,10 @@
  * written against that one inbox passes it here and gets each of the API's answers.
  */
 
+import type { ZodType } from "zod";
+import * as ruleContract from "../src/lib/api/generated/approval-rules/approval-rules.zod";
+import * as contract from "../src/lib/api/generated/approvals/approvals.zod";
+
 /**
  * The Response a real `fetch` returns. Read before any test registers happy-dom, as each test file
  * that needs it does at its top.
@@ -112,9 +116,27 @@ function pathOf(input: unknown): string {
   return new URL(text, "http://openbot.test").pathname;
 }
 
+/**
+ * An answer the API's contract allows, or the test fails here. The server checks every answer it
+ * sends against the same schema, generated from api/openapi.yaml, so a fake holding a status the
+ * API never sends, or missing a field it always sends, is a fake of nothing.
+ */
+function served(schema: ZodType, body: unknown, status = 200): Response {
+  const checked = schema.safeParse(body);
+  if (!checked.success) {
+    const issue = checked.error.issues[0];
+    // Said as well as thrown: the app turns a failed read into an empty screen, which a test then
+    // reports as a missing row, far from the fake that caused it.
+    const message = `A test's approvals answer is not one the API sends: ${issue?.path.join(".") ?? ""}: ${issue?.message ?? "invalid"}. Got ${JSON.stringify(body).slice(0, 400)}`;
+    console.error(message);
+    throw new Error(message);
+  }
+  return NativeResponse.json(checked.data as object, { status });
+}
+
 /** One page holding the whole list, which is how the server answers a short one. */
-const page = (name: string, items: readonly unknown[]) =>
-  NativeResponse.json({ [name]: items, nextCursor: null });
+const page = (schema: ZodType, name: string, items: readonly unknown[]) =>
+  served(schema, { [name]: items, nextCursor: null });
 
 /**
  * The API's answer to one of the seven reads the inbox is made of, from the inbox a test describes,
@@ -126,9 +148,14 @@ export function approvalInboxResponse(
 ): Response | undefined {
   const path = pathOf(input);
   if (path === APPROVALS_PATH)
-    return page("approvals", (inbox.requests ?? []).map(approvalBody));
+    return page(
+      contract.ListApprovalsResponse,
+      "approvals",
+      (inbox.requests ?? []).map(approvalBody),
+    );
   if (path === QUESTIONS_PATH)
     return page(
+      contract.ListQuestionsResponse,
       "questions",
       (inbox.questions ?? []).map((question) => ({
         // The Bot whose conversation it belongs to is the Bot that asked, unless a test says so.
@@ -138,9 +165,13 @@ export function approvalInboxResponse(
       })),
     );
   if (path === APPROVAL_PREFERENCES_PATH)
-    return NativeResponse.json(approvalPreferencesBody(inbox));
+    return served(
+      contract.GetApprovalPreferencesResponse,
+      approvalPreferencesBody(inbox),
+    );
   if (path === PERSON_APPROVAL_RULES_PATH)
     return page(
+      contract.ListPersonApprovalRulesResponse,
       "approvalRules",
       (inbox.rules ?? []).map((rule) => ({
         account: null,
@@ -150,11 +181,19 @@ export function approvalInboxResponse(
       })),
     );
   if (path === CONVERSATION_GRANTS_PATH)
-    return page("conversationGrants", inbox.conversationGrants ?? []);
+    return page(
+      contract.ListConversationGrantsResponse,
+      "conversationGrants",
+      inbox.conversationGrants ?? [],
+    );
   if (path === APPROVAL_SETTINGS_PATH)
-    return NativeResponse.json(approvalSettingsBody(inbox));
+    return served(
+      ruleContract.GetApprovalSettingsResponse,
+      approvalSettingsBody(inbox),
+    );
   if (path === APPROVAL_RULES_PATH)
     return page(
+      ruleContract.ListApprovalRulesResponse,
       "approvalRules",
       (inbox.teamRules ?? []).map((rule) => ({
         createdBy: null,
@@ -167,7 +206,7 @@ export function approvalInboxResponse(
 
 /** How a conversation asks, as the API answers it. */
 export function approvalModeResponse(asksEveryStep: boolean): Response {
-  return NativeResponse.json({ asksEveryStep });
+  return served(contract.GetApprovalModeResponse, { asksEveryStep });
 }
 
 /** A write that answers nothing: a question dismissed, a rule or a conversation approval removed. */
@@ -200,7 +239,7 @@ export function approvalWriteResponse(
       (inbox.requests ?? []).find(
         (one) => (one as { id?: string }).id === id,
       ) ?? {};
-    return NativeResponse.json({
+    return served(contract.DecideApprovalResponse, {
       action: {
         botId: "bot",
         toolRef: "tool",
@@ -219,17 +258,20 @@ export function approvalWriteResponse(
   if (path.startsWith(`${QUESTIONS_PATH}/`) && question)
     return question[2] === "dismiss"
       ? noContentResponse()
-      : NativeResponse.json({
+      : served(contract.RespondToQuestionResponse, {
           id: decodeURIComponent(question[1] ?? ""),
           continueHere: false,
         });
   if (path === APPROVAL_PREFERENCES_PATH)
-    return NativeResponse.json({
+    return served(contract.UpdateApprovalPreferencesResponse, {
       ...approvalPreferencesBody(inbox),
       ...body,
     });
   if (path === APPROVAL_SETTINGS_PATH)
-    return NativeResponse.json({ ...approvalSettingsBody(inbox), ...body });
+    return served(ruleContract.UpdateApprovalSettingsResponse, {
+      ...approvalSettingsBody(inbox),
+      ...body,
+    });
   const person = path.startsWith(PERSON_APPROVAL_RULES_PATH);
   if (person || path.startsWith(APPROVAL_RULES_PATH)) {
     if (method === "DELETE") return noContentResponse();
@@ -245,7 +287,18 @@ export function approvalWriteResponse(
       createdAt: CREATED_AT,
       ...body,
     };
-    return NativeResponse.json(rule, { status: method === "POST" ? 201 : 200 });
+    const created = method === "POST";
+    return served(
+      person
+        ? created
+          ? contract.CreatePersonApprovalRuleResponse
+          : contract.UpdatePersonApprovalRuleResponse
+        : created
+          ? ruleContract.CreateApprovalRuleResponse
+          : ruleContract.UpdateApprovalRuleResponse,
+      rule,
+      created ? 201 : 200,
+    );
   }
   if (path.startsWith(`${CONVERSATION_GRANTS_PATH}/`) && method === "DELETE")
     return noContentResponse();
@@ -284,7 +337,7 @@ export async function computerStepResponse(
     unknown
   >;
   if (decided.status === 202)
-    return NativeResponse.json({
+    return served(contract.RunComputerStepResponse, {
       outcome: "waiting",
       ...(typeof body.approvalId === "string"
         ? { approvalId: body.approvalId }
@@ -295,13 +348,16 @@ export async function computerStepResponse(
           : "This action is waiting for your approval.",
     });
   if (decided.status === 409 && body.humanHasControl === true)
-    return NativeResponse.json({ outcome: "held", ...body });
+    return served(contract.RunComputerStepResponse, {
+      outcome: "held",
+      ...body,
+    });
   if (!decided.ok)
     return problemResponse(
       decided.status,
       typeof body.error === "string" ? body.error : "That did not work.",
     );
-  return NativeResponse.json({
+  return served(contract.RunComputerStepResponse, {
     outcome: "done",
     ...("result" in body ? { result: body.result } : {}),
   });

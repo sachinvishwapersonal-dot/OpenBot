@@ -145,8 +145,10 @@ function api(role: "admin" | "user") {
         },
         {
           id: "r-decided",
-          status: "allowed",
+          status: "approved",
+          decision: "allow_once",
           createdAt: now,
+          decidedAt: now,
           action: {
             botId: "b-1",
             toolRef: "mcp/drive/share",
